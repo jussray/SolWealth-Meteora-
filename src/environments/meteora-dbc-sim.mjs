@@ -26,6 +26,7 @@ export class MeteoraDbcLab {
       dryRun: this.dryRun,
       programId: this.programId,
       poolConfig: {
+        exists: Boolean(seed.configExists),
         quoteMint: seed.quoteMint ?? "SOL",
         migrationOption: "DAMM_V2",
         migrationQuoteThreshold: seed.migrationQuoteThreshold ?? 10,

@@ -14,7 +14,7 @@ This document records the adversarial decisions applied before Solwealth v0 was 
 
 **Attack:** The hackathon environment could become the architecture.
 
-**Ruling:** Rejected. Meteora is an environment adapter. The brain, memory, development, authority, and evidence contracts know nothing about a specific launch protocol.
+**Ruling:** Rejected. Meteora is an environment adapter. The brain, mind, memory, development, authority, and evidence contracts know nothing about a specific launch protocol.
 
 ### 3. Capability/authority collapse
 
@@ -76,6 +76,12 @@ This document records the adversarial decisions applied before Solwealth v0 was 
 
 **Ruling:** Every v0 receipt says dry-run, not signed, not submitted, and not real money. CI proves software behavior only.
 
+### 13. Puppet-baby failure
+
+**Attack:** The caller chooses every action, leaving Solwealth with memory but no native judgment.
+
+**Ruling:** Repaired before merge. `InfantMind` now forms the next bounded learning proposal from observed DBC state. It can choose what to study next but cannot authorize, sign, submit, or widen its own ceiling.
+
 ## Devil verdict
 
-**ADMIT WITH CEILING.** Solwealth is coherent as a newborn independent AI if the first merged slice proves the full learning loop while keeping external financial effects impossible. The next gate after v0 is a real read-only Devnet observer plus transaction simulation, not signing or mainnet execution.
+**ADMIT WITH CEILING.** Solwealth is coherent as a newborn independent AI if the first merged slice proves the full learning loop, including native proposal formation, while keeping external financial effects impossible. The next gate after v0 is a real read-only Devnet observer plus transaction simulation, not signing or mainnet execution.

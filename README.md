@@ -2,7 +2,7 @@
 
 **A new baby AI born from proven portfolio DNA, not a wrapper around its parents.**
 
-Solwealth is an independently runnable learning agent. Its first proving environment is a Solana Devnet and Meteora DBC-shaped laboratory. It inherits principles and contracts from established systems while owning its own memory, developmental state, decision loop, evidence, and identity.
+Solwealth is an independently runnable learning agent. Its first proving environment is a Solana Devnet and Meteora DBC-shaped laboratory. It inherits principles and contracts from established systems while owning its own mind, memory, developmental state, decision loop, evidence, and identity.
 
 ## Lineage
 
@@ -17,7 +17,9 @@ Inheritance is by documented primitive, not runtime dependency. Solwealth must r
 
 ## First end-to-end loop
 
-`BIRTH → OBSERVE → ORIENT → PROPOSE → HUMAN APPROVAL → DRY-RUN EXPERIENCE → MULTI-PROVIDER WITNESS → REFLECT → REMEMBER`
+`BIRTH → OBSERVE → ORIENT → THINK → SELF-PROPOSE → HUMAN APPROVAL → DRY-RUN EXPERIENCE → MULTI-PROVIDER WITNESS → REFLECT → REMEMBER`
+
+The infant mind chooses the next bounded learning action from observed state. It can propose. It cannot self-authorize, sign, submit, or move real money.
 
 The first environment is DBC-shaped and dry-run / Devnet-only. The repository contains no production wallet secret, private key, mainnet money path, or autonomous real-money execution.
 
@@ -30,6 +32,7 @@ The first environment is DBC-shaped and dry-run / Devnet-only. The repository co
 5. **The baby earns developmental scope.** New capabilities can be learned; authority never self-mints.
 6. **Parents are lineage, not life support.** No core loop imports SleepWealth, SolContinuity, FCR, or Chief at runtime.
 7. **Meteora is an environment, not identity.** Solwealth can later learn in other environments without architectural surgery.
+8. **The mind may propose, never permit itself.** Intelligence and authority remain separate even when the proposal originates inside Solwealth.
 
 ## Run
 

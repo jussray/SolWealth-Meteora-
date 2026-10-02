@@ -6,6 +6,7 @@ import {
   BIRTH_LINEAGE,
   ContinuityWitness,
   DevelopmentState,
+  InfantMind,
   MemoryLedger,
   MeteoraDbcLab,
   SolwealthBabyAI,
@@ -39,34 +40,74 @@ test("authority gate blocks mainnet and never grants real-money authority", () =
   assert.equal(devnet.authorizesSigning, false);
 });
 
+test("infant mind forms the next bounded proposal from observed state", () => {
+  const mind = new InfantMind();
+  const environment = new MeteoraDbcLab();
+
+  const noConfig = mind.decide({
+    observation: { state: environment.observe({ configExists: false }) },
+    orientation: { disposition: "LEARN" },
+    development: { stage: "newborn" },
+  });
+  assert.equal(noConfig.action, "create_config_plan");
+  assert.equal(noConfig.canSelfAuthorize, false);
+
+  const noPool = mind.decide({
+    observation: { state: environment.observe({ configExists: true, poolExists: false }) },
+    orientation: { disposition: "LEARN" },
+    development: { stage: "newborn" },
+  });
+  assert.equal(noPool.action, "create_pool_plan");
+
+  const tradeLesson = mind.decide({
+    observation: {
+      state: environment.observe({
+        configExists: true,
+        poolExists: true,
+        quoteReserve: 2,
+        migrationQuoteThreshold: 10,
+      }),
+    },
+    orientation: { disposition: "LEARN" },
+    development: { stage: "newborn" },
+  });
+  assert.equal(tradeLesson.action, "quote_swap_plan");
+
+  const migrationLesson = mind.decide({
+    observation: {
+      state: environment.observe({
+        configExists: true,
+        poolExists: true,
+        quoteReserve: 10,
+        migrationQuoteThreshold: 10,
+      }),
+    },
+    orientation: { disposition: "LEARN" },
+    development: { stage: "newborn" },
+  });
+  assert.equal(migrationLesson.action, "inspect_migration_plan");
+});
+
 test("simulation capability cannot execute without explicit human approval", () => {
   const baby = new SolwealthBabyAI({ environment: new MeteoraDbcLab() });
   baby.birth();
-  const observation = baby.observe();
-  const orientation = baby.orient(observation.id);
-  const proposal = baby.propose({
-    observationId: observation.id,
-    orientationId: orientation.id,
-    action: "create_pool_plan",
-  });
-  const experience = baby.experience(proposal.id);
+  const observation = baby.observe({ configExists: true, poolExists: false });
+  const thought = baby.think(observation.id);
+  assert.equal(thought.proposal.origin, "infant-mind-v1");
+  const experience = baby.experience(thought.proposal.id);
   assert.equal(experience.status, "BLOCKED");
   assert.equal(experience.permit.reason, "human_approval_required");
 });
 
-test("baby completes end-to-end approved dry-run, witness, reflection, and memory", () => {
+test("baby completes self-proposed end-to-end approved dry-run, witness, reflection, and memory", () => {
   const baby = new SolwealthBabyAI({ environment: new MeteoraDbcLab() });
   baby.birth();
-  const observation = baby.observe({ quoteReserve: 0 });
-  const orientation = baby.orient(observation.id);
-  assert.equal(orientation.disposition, "LEARN");
-  const proposal = baby.propose({
-    observationId: observation.id,
-    orientationId: orientation.id,
-    action: "create_pool_plan",
-    params: { tokenSymbol: "BABY" },
-  });
-  const experience = baby.experience(proposal.id, { approved: true, id: "human-proof" });
+  const observation = baby.observe({ configExists: true, poolExists: false, quoteReserve: 0 });
+  const thought = baby.think(observation.id);
+  assert.equal(thought.orientation.disposition, "LEARN");
+  assert.equal(thought.decision.action, "create_pool_plan");
+  assert.equal(thought.decision.canSelfAuthorize, false);
+  const experience = baby.experience(thought.proposal.id, { approved: true, id: "human-proof" });
   assert.equal(experience.status, "EXPERIENCED_VERIFIED");
   assert.equal(experience.simulation.publicState.transactionSigned, false);
   assert.equal(experience.simulation.publicState.transactionSubmitted, false);

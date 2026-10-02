@@ -4,18 +4,14 @@ import { MeteoraDbcLab } from "./environments/meteora-dbc-sim.mjs";
 const solwealth = new SolwealthBabyAI({ environment: new MeteoraDbcLab() });
 
 const birth = solwealth.birth();
-const observation = solwealth.observe({ migrationQuoteThreshold: 10, quoteReserve: 0 });
-const orientation = solwealth.orient(observation.id);
-const proposal = solwealth.propose({
-  observationId: observation.id,
-  orientationId: orientation.id,
-  action: "create_pool_plan",
-  params: {
-    tokenSymbol: "BABY",
-    quoteMint: "SOL",
-    migrationTarget: "DAMM_V2",
-  },
+const observation = solwealth.observe({
+  configExists: true,
+  poolExists: false,
+  migrationQuoteThreshold: 10,
+  quoteReserve: 0,
 });
+const thought = solwealth.think(observation.id);
+const proposal = thought.proposal;
 const experience = solwealth.experience(proposal.id, {
   approved: true,
   id: "demo-human-approval",
@@ -28,8 +24,11 @@ console.log(
       baby: "solwealth",
       birthHash: birth.hash,
       observationId: observation.id,
-      orientation: orientation.disposition,
+      orientation: thought.orientation.disposition,
+      mindDecision: thought.decision.action,
+      mindCanSelfAuthorize: thought.decision.canSelfAuthorize,
       proposalId: proposal.id,
+      proposalOrigin: proposal.origin,
       experience: experience.status,
       witness: experience.witness?.status,
       reflection: reflection.lesson,

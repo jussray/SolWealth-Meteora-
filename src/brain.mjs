@@ -3,6 +3,7 @@ import { AuthorityGate } from "./authority.mjs";
 import { DevelopmentState } from "./development.mjs";
 import { birthCertificate } from "./lineage.mjs";
 import { MemoryLedger, stableStringify } from "./memory.mjs";
+import { InfantMind } from "./mind.mjs";
 import { ContinuityWitness } from "./witness/continuity.mjs";
 
 function makeId(prefix, payload) {
@@ -15,16 +16,18 @@ export class SolwealthBabyAI {
   #development;
   #witness;
   #environment;
+  #mind;
   #observations = new Map();
   #proposals = new Map();
 
-  constructor({ environment, memory, authority, development, witness } = {}) {
+  constructor({ environment, memory, authority, development, witness, mind } = {}) {
     if (!environment) throw new Error("Solwealth needs an environment to learn from.");
     this.#environment = environment;
     this.#memory = memory ?? new MemoryLedger();
     this.#authority = authority ?? new AuthorityGate();
     this.#development = development ?? new DevelopmentState();
     this.#witness = witness ?? new ContinuityWitness();
+    this.#mind = mind ?? new InfantMind();
   }
 
   birth() {
@@ -32,11 +35,13 @@ export class SolwealthBabyAI {
       ...birthCertificate(),
       developmentalState: this.#development.snapshot(),
       environment: this.#environment.name,
+      mind: "infant-mind-v1",
       independence: {
         importsParentsAtRuntime: false,
         ownsMemory: true,
         ownsDecisionLoop: true,
         ownsDevelopmentalState: true,
+        formsOwnProposals: true,
       },
     };
     return this.#memory.append("BIRTH", certificate);
@@ -77,7 +82,31 @@ export class SolwealthBabyAI {
     return structuredClone(orientation);
   }
 
-  propose({ observationId, orientationId, action, params = {} }) {
+  think(observationId) {
+    const observation = this.#observations.get(observationId);
+    if (!observation) throw new Error("Unknown observation.");
+    const orientation = this.orient(observationId);
+    const decision = this.#mind.decide({
+      observation,
+      orientation,
+      development: this.#development.snapshot(),
+    });
+    this.#memory.append("THINK", decision);
+    if (decision.status !== "PROPOSE") {
+      return { orientation, decision, proposal: null };
+    }
+    const proposal = this.propose({
+      observationId,
+      orientationId: orientation.id,
+      action: decision.action,
+      params: decision.params,
+      rationale: decision.rationale,
+      origin: "infant-mind-v1",
+    });
+    return { orientation, decision, proposal };
+  }
+
+  propose({ observationId, orientationId, action, params = {}, rationale = "requested", origin = "caller" }) {
     const observation = this.#observations.get(observationId);
     if (!observation) throw new Error("Unknown observation.");
     if (!this.#environment.supportedActions.includes(action)) {
@@ -91,6 +120,8 @@ export class SolwealthBabyAI {
       capability,
       environment: this.#environment.environment,
       params: structuredClone(params),
+      rationale,
+      origin,
       requiresHumanApproval: capability !== "observe",
       authorizesItself: false,
     };
