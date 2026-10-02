@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 export const SOLANA_DEVNET_RPC_URL = "https://api.devnet.solana.com";
-export const SOLANA_DEVNET_GENESIS_HASH = "GH7ome3EiwEr7tu9JuTh2dpYWBJK3z69Xm1ZE3MEE6JC";
+export const SOLANA_DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 const SYSTEM_PROGRAM_ID = "11111111111111111111111111111111";
 const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const BASE58_INDEX = new Map([...BASE58_ALPHABET].map((character, index) => [character, index]));
