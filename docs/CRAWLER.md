@@ -6,7 +6,7 @@ Crawler is Solwealth's first live-perception stage. It adds real read-only Solan
 
 - Network: Solana Devnet only.
 - Runtime default RPC: the public Solana Devnet endpoint.
-- Verification profile: two independent public Devnet provider surfaces, Solana's public endpoint plus Ankr's Devnet endpoint, as listed by Solana's RPC infrastructure directory.
+- Verification profile: two independent public Devnet provider surfaces, Solana's public endpoint plus OnFinality's public Solana Devnet endpoint.
 - DBC program: Meteora Dynamic Bonding Curve program identity already pinned by the birth environment.
 - No private keys, wallet secrets, signing methods, `sendTransaction`, mainnet path, or real-money execution surface exists in this lane.
 - `simulateTransaction` is used only as an RPC simulation. A response may contain an execution error and still be a valid learning observation.
@@ -29,5 +29,5 @@ Set `SOLWEALTH_DBC_POOL` to a public Devnet DBC pool address to add read-only ac
 
 ## Evidence sources
 
-- Solana RPC infrastructure directory: https://solana.com/rpc
 - Solana Devnet cluster endpoint documentation: https://solana.com/docs/references/clusters
+- OnFinality Solana Devnet public endpoint: https://www.onfinality.io/en/networks/solana-devnet

@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
-      SOLANA_DEVNET_RPC_URLS: https://api.devnet.solana.com,https://rpc.ankr.com/solana_devnet
+      SOLANA_DEVNET_RPC_URLS: https://api.devnet.solana.com,https://solana-devnet.api.onfinality.io/public
     steps:
       - uses: actions/checkout@v4
         with:
