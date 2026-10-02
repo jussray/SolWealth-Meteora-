@@ -17,6 +17,30 @@ export class InfantMind {
       };
     }
 
+    if (state.sourceMode === "live-readonly") {
+      if (state.clusterVerified !== true) {
+        return { status: "HALT", reason: "devnet_identity_not_verified", canSelfAuthorize: false };
+      }
+      if (state.programAccount?.present !== true || state.programAccount?.executable !== true) {
+        return { status: "HALT", reason: "dbc_program_not_observed_executable", canSelfAuthorize: false };
+      }
+      return {
+        status: "PROPOSE",
+        action: "simulate_program_probe",
+        params: {
+          programId: state.programId,
+          observedProviderCount: state.observedProviderCount,
+          poolAddress: state.poolState?.address ?? null,
+        },
+        rationale: "Live Devnet confirms the DBC program is present; the next bounded lesson is an unsigned RPC simulation, never a submitted transaction.",
+        developmentalStage: development.stage,
+        confidenceClass: observation.observationWitness?.verified ? "provider-quorum-observed" : "single-provider-or-insufficient-quorum",
+        canSelfAuthorize: false,
+        canSign: false,
+        canSubmit: false,
+      };
+    }
+
     let action;
     let rationale;
     let params = {};
