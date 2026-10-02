@@ -13,6 +13,7 @@ const SIMULATED_EFFECT_CAPABILITIES = new Set([
   "simulate_trade",
   "simulate_spend",
   "simulate_transfer",
+  "simulate_devnet_transaction",
   "plan_devnet",
 ]);
 
