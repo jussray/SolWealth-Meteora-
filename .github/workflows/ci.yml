@@ -30,7 +30,9 @@ jobs:
       - name: Test
         run: npm test
       - name: Run end-to-end birth demo
-        run: npm run demo | tee solwealth-birth-receipt.json
+        run: |
+          set -o pipefail
+          npm run demo | tee solwealth-birth-receipt.json
       - name: Fail closed if demo claims live effects
         run: |
           grep -q '"realMoney": false' solwealth-birth-receipt.json
@@ -61,7 +63,9 @@ jobs:
           test "$checked_out_sha" = "$EXPECTED_HEAD_SHA"
           echo "exact_head_sha=$checked_out_sha"
       - name: Run bounded live Devnet crawler
-        run: npm run crawler:live | tee solwealth-crawler-receipt.json
+        run: |
+          set -o pipefail
+          npm run crawler:live | tee solwealth-crawler-receipt.json
       - name: Verify crawler boundary and public observations
         run: |
           grep -q '"clusterVerified": true' solwealth-crawler-receipt.json
@@ -73,6 +77,8 @@ jobs:
           grep -q '"transactionSigned": false' solwealth-crawler-receipt.json
           grep -q '"transactionSubmitted": false' solwealth-crawler-receipt.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: solwealth-crawler-receipt
           path: solwealth-crawler-receipt.json
+          if-no-files-found: warn
