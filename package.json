@@ -1,0 +1,14 @@
+{
+  "name": "solwealth",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Independent baby AI born from proven governance, wealth-reasoning, continuity, and evidence primitives.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/demo.mjs"
+  }
+}
