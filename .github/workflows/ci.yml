@@ -8,17 +8,25 @@ on:
 permissions:
   contents: read
 
+env:
+  EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Prove exact checked-out head
+      - name: Bind proof to exact head
         run: |
-          echo "tested_sha=$(git rev-parse HEAD)"
+          set -euo pipefail
+          checked_out_sha="$(git rev-parse HEAD)"
+          test "$checked_out_sha" = "$EXPECTED_HEAD_SHA"
+          echo "exact_head_sha=$checked_out_sha"
       - name: Test
         run: npm test
       - name: Run end-to-end birth demo
@@ -29,6 +37,7 @@ jobs:
           grep -q '"transactionSigned": false' solwealth-birth-receipt.json
           grep -q '"transactionSubmitted": false' solwealth-birth-receipt.json
           grep -q '"memoryVerified": true' solwealth-birth-receipt.json
+          grep -q '"mindCanSelfAuthorize": false' solwealth-birth-receipt.json
       - uses: actions/upload-artifact@v4
         with:
           name: solwealth-birth-receipt
