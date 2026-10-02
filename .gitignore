@@ -1,0 +1,7 @@
+node_modules/
+artifacts/
+.env
+.env.*
+*.key
+*.pem
+keypair.json
