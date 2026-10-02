@@ -49,6 +49,8 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    env:
+      SOLANA_DEVNET_RPC_URLS: https://api.devnet.solana.com,https://solana-devnet.api.onfinality.io/public
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,16 +64,21 @@ jobs:
           checked_out_sha="$(git rev-parse HEAD)"
           test "$checked_out_sha" = "$EXPECTED_HEAD_SHA"
           echo "exact_head_sha=$checked_out_sha"
-      - name: Run bounded live Devnet crawler
+      - name: Run bounded two-provider Devnet crawler
         run: |
           set -o pipefail
           npm run crawler:live | tee solwealth-crawler-receipt.json
-      - name: Verify crawler boundary and public observations
+      - name: Verify two-eye crawler truth and boundaries
         run: |
           grep -q '"clusterVerified": true' solwealth-crawler-receipt.json
           grep -q '"programPresent": true' solwealth-crawler-receipt.json
           grep -q '"programExecutable": true' solwealth-crawler-receipt.json
-          grep -q '"simulationRpcContact": true' solwealth-crawler-receipt.json
+          grep -q '"observedProviderCount": 2' solwealth-crawler-receipt.json
+          grep -q '"liveWitness": "VERIFIED"' solwealth-crawler-receipt.json
+          grep -q '"experienceStatus": "EXPERIENCED_VERIFIED"' solwealth-crawler-receipt.json
+          grep -q '"simulationWitness": "VERIFIED"' solwealth-crawler-receipt.json
+          grep -q '"verifiedExperiences": 1' solwealth-crawler-receipt.json
+          grep -q '"recommendedStage": "crawler"' solwealth-crawler-receipt.json
           grep -q '"memoryVerified": true' solwealth-crawler-receipt.json
           grep -q '"realMoney": false' solwealth-crawler-receipt.json
           grep -q '"transactionSigned": false' solwealth-crawler-receipt.json
