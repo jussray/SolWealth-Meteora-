@@ -45,6 +45,43 @@ jobs:
           name: solwealth-birth-receipt
           path: solwealth-birth-receipt.json
 
+  persistent-memory:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bind persistence proof to exact head
+        run: |
+          set -euo pipefail
+          checked_out_sha="$(git rev-parse HEAD)"
+          test "$checked_out_sha" = "$EXPECTED_HEAD_SHA"
+          echo "exact_head_sha=$checked_out_sha"
+      - name: Prove cross-process memory restart
+        run: |
+          set -o pipefail
+          npm run memory:restart | tee solwealth-memory-restart-receipt.json
+      - name: Verify memory continuity without authority continuity
+        run: |
+          grep -q '"memorySurvivedRestart": true' solwealth-memory-restart-receipt.json
+          grep -q '"verifiedExperiencesRestored": 1' solwealth-memory-restart-receipt.json
+          grep -q '"recommendedStage": "crawler"' solwealth-memory-restart-receipt.json
+          grep -q '"authorityRestored": false' solwealth-memory-restart-receipt.json
+          grep -q '"pendingProposalsRestored": false' solwealth-memory-restart-receipt.json
+          grep -q '"pendingApprovalsRestored": false' solwealth-memory-restart-receipt.json
+          grep -q '"memoryVerified": true' solwealth-memory-restart-receipt.json
+          grep -q '"realMoney": false' solwealth-memory-restart-receipt.json
+          grep -q '"transactionSigned": false' solwealth-memory-restart-receipt.json
+          grep -q '"transactionSubmitted": false' solwealth-memory-restart-receipt.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: solwealth-memory-restart-receipt
+          path: solwealth-memory-restart-receipt.json
+
   live-devnet-crawler:
     needs: test
     runs-on: ubuntu-latest
