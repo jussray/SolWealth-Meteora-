@@ -29,6 +29,20 @@ function encodeShortVec(value) {
   return Buffer.from(output);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(response, fallbackMs) {
+  const raw = response?.headers?.get?.("retry-after");
+  if (!raw) return fallbackMs;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1000);
+  const date = Date.parse(raw);
+  if (Number.isFinite(date)) return Math.max(0, date - Date.now());
+  return fallbackMs;
+}
+
 export function decodeBase58(value) {
   if (typeof value !== "string" || value.length === 0) throw new Error("base58 value is required");
   let numeric = 0n;
@@ -80,15 +94,22 @@ export class SolanaDevnetRpc {
   #fetch;
   #timeoutMs;
   #retries;
+  #minRequestIntervalMs;
+  #rateLimitBackoffMs;
+  #lastRequestAt = new Map();
 
   constructor({
     endpoints = [SOLANA_DEVNET_RPC_URL],
     fetchFn = globalThis.fetch,
     timeoutMs = 10_000,
-    retries = 2,
+    retries = 3,
+    minRequestIntervalMs = 300,
+    rateLimitBackoffMs = 1_100,
   } = {}) {
     if (typeof fetchFn !== "function") throw new Error("A fetch implementation is required.");
     if (!Array.isArray(endpoints) || endpoints.length === 0) throw new Error("At least one Devnet RPC endpoint is required.");
+    if (!Number.isFinite(minRequestIntervalMs) || minRequestIntervalMs < 0) throw new Error("minRequestIntervalMs must be non-negative.");
+    if (!Number.isFinite(rateLimitBackoffMs) || rateLimitBackoffMs < 0) throw new Error("rateLimitBackoffMs must be non-negative.");
     this.#endpoints = [...new Set(endpoints.map((endpoint) => {
       const url = new URL(endpoint);
       if (url.protocol !== "https:") throw new Error("Devnet RPC endpoints must use HTTPS.");
@@ -97,15 +118,25 @@ export class SolanaDevnetRpc {
     this.#fetch = fetchFn;
     this.#timeoutMs = timeoutMs;
     this.#retries = retries;
+    this.#minRequestIntervalMs = minRequestIntervalMs;
+    this.#rateLimitBackoffMs = rateLimitBackoffMs;
   }
 
   endpoints() {
     return this.#endpoints.map((endpoint) => ({ provider: providerId(endpoint) }));
   }
 
+  async #pace(endpoint) {
+    const prior = this.#lastRequestAt.get(endpoint) ?? 0;
+    const waitMs = Math.max(0, prior + this.#minRequestIntervalMs - Date.now());
+    if (waitMs > 0) await sleep(waitMs);
+    this.#lastRequestAt.set(endpoint, Date.now());
+  }
+
   async #call(endpoint, method, params = []) {
     let lastError;
     for (let attempt = 0; attempt <= this.#retries; attempt += 1) {
+      await this.#pace(endpoint);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.#timeoutMs);
       try {
@@ -118,6 +149,8 @@ export class SolanaDevnetRpc {
         if (!response.ok) {
           const error = new Error(`RPC HTTP ${response.status}`);
           error.rpcReached = true;
+          error.httpStatus = response.status;
+          error.retryAfterMs = retryAfterMs(response, this.#rateLimitBackoffMs);
           throw error;
         }
         const payload = await response.json();
@@ -131,7 +164,10 @@ export class SolanaDevnetRpc {
       } catch (error) {
         lastError = error;
         if (attempt >= this.#retries) break;
-        await new Promise((resolve) => setTimeout(resolve, 200 * (2 ** attempt)));
+        const waitMs = error.httpStatus === 429
+          ? Math.max(error.retryAfterMs ?? 0, this.#rateLimitBackoffMs)
+          : 200 * (2 ** attempt);
+        await sleep(waitMs);
       } finally {
         clearTimeout(timeout);
       }
@@ -146,12 +182,10 @@ export class SolanaDevnetRpc {
     for (const endpoint of this.#endpoints) {
       const provider = providerId(endpoint);
       try {
-        const [genesisHash, slot, version, accountInfo] = await Promise.all([
-          this.#call(endpoint, "getGenesisHash"),
-          this.#call(endpoint, "getSlot", [{ commitment: "confirmed" }]),
-          this.#call(endpoint, "getVersion"),
-          this.#call(endpoint, "getAccountInfo", [programId, { encoding: "base64", commitment: "confirmed" }]),
-        ]);
+        const genesisHash = await this.#call(endpoint, "getGenesisHash");
+        const slot = await this.#call(endpoint, "getSlot", [{ commitment: "confirmed" }]);
+        const version = await this.#call(endpoint, "getVersion");
+        const accountInfo = await this.#call(endpoint, "getAccountInfo", [programId, { encoding: "base64", commitment: "confirmed" }]);
         const account = accountInfo?.value ?? null;
         const state = {
           network: "solana-devnet",

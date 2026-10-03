@@ -81,6 +81,7 @@ test("two independent configured RPC observations can satisfy continuity quorum 
     endpoints: ["https://rpc-a.example", "https://rpc-b.example"],
     fetchFn: fakeFetch,
     retries: 0,
+    minRequestIntervalMs: 0,
   });
   const observation = await rpc.observeProgram(METEORA_DBC_PROGRAM_ID);
   assert.equal(observation.clusterVerified, true);
@@ -91,11 +92,41 @@ test("two independent configured RPC observations can satisfy continuity quorum 
   assert.equal(witness.status, "VERIFIED");
 });
 
+test("a temporary HTTP 429 is paced and retried instead of silently losing a provider", async () => {
+  let rateLimitResponses = 0;
+  const recoveringFetch = async (endpoint, options) => {
+    const request = JSON.parse(options.body);
+    if (endpoint.includes("rpc-b") && request.method === "getGenesisHash" && rateLimitResponses === 0) {
+      rateLimitResponses += 1;
+      return {
+        ok: false,
+        status: 429,
+        headers: { get: () => "0" },
+        json: async () => ({}),
+      };
+    }
+    return fakeFetch(endpoint, options);
+  };
+
+  const rpc = new SolanaDevnetRpc({
+    endpoints: ["https://rpc-a.example", "https://rpc-b.example"],
+    fetchFn: recoveringFetch,
+    retries: 1,
+    minRequestIntervalMs: 0,
+    rateLimitBackoffMs: 1,
+  });
+  const observation = await rpc.observeProgram(METEORA_DBC_PROGRAM_ID);
+  assert.equal(rateLimitResponses, 1);
+  assert.equal(observation.observedProviderCount, 2);
+  assert.equal(new ContinuityWitness().verify(observation.providerObservations).status, "VERIFIED");
+});
+
 test("single live provider remains insufficient evidence instead of self-certifying", async () => {
   const rpc = new SolanaDevnetRpc({
     endpoints: ["https://rpc-a.example"],
     fetchFn: fakeFetch,
     retries: 0,
+    minRequestIntervalMs: 0,
   });
   const environment = new MeteoraDbcCrawler({ rpc });
   const baby = new SolwealthBabyAI({ environment });
@@ -137,6 +168,7 @@ test("RPC adapter exposes observation and simulation only, never signing or subm
     endpoints: ["https://rpc-a.example"],
     fetchFn: fakeFetch,
     retries: 0,
+    minRequestIntervalMs: 0,
   });
   assert.equal(typeof rpc.sendTransaction, "undefined");
   assert.equal(typeof rpc.signTransaction, "undefined");
