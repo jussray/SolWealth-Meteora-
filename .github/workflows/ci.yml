@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+# Pull request heads share one group; main push runs remain unique.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
