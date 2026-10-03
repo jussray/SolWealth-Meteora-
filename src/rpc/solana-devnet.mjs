@@ -85,6 +85,22 @@ export function decodeBase58(value) {
   return Buffer.concat([Buffer.alloc(leadingZeroes), body]);
 }
 
+export function encodeBase58(value) {
+  const bytes = Buffer.from(value);
+  if (bytes.length === 0) return "";
+  let numeric = 0n;
+  for (const byte of bytes) numeric = (numeric << 8n) + BigInt(byte);
+  let encoded = "";
+  while (numeric > 0n) {
+    const remainder = Number(numeric % 58n);
+    encoded = BASE58_ALPHABET[remainder] + encoded;
+    numeric /= 58n;
+  }
+  let leadingZeroes = 0;
+  while (leadingZeroes < bytes.length && bytes[leadingZeroes] === 0) leadingZeroes += 1;
+  return `${"1".repeat(leadingZeroes)}${encoded}`;
+}
+
 export function buildUnsignedProgramProbe({ programId, recentBlockhash }) {
   const feePayer = decodeBase58(SYSTEM_PROGRAM_ID);
   const program = decodeBase58(programId);
@@ -249,6 +265,75 @@ export class SolanaDevnetRpc {
       },
       providers,
       providerObservations,
+    };
+  }
+
+  async discoverAccountByDiscriminator(programId, expectedDiscriminators = []) {
+    const discriminators = normalizeExpectedDiscriminators(expectedDiscriminators);
+    if (discriminators.length === 0) throw new Error("At least one account discriminator is required for discovery.");
+    const attempts = [];
+
+    for (const discriminator of discriminators) {
+      const bytes = encodeBase58(Buffer.from(discriminator.discriminatorHex, "hex"));
+      for (const endpoint of this.#endpoints) {
+        const provider = providerId(endpoint);
+        try {
+          const result = await this.#call(endpoint, "getProgramAccounts", [programId, {
+            encoding: "base64",
+            commitment: "confirmed",
+            dataSlice: { offset: 0, length: 0 },
+            filters: [{ memcmp: { offset: 0, bytes } }],
+          }]);
+          const addresses = (Array.isArray(result) ? result : [])
+            .map((entry) => entry?.pubkey)
+            .filter((address) => typeof address === "string" && address.length > 0)
+            .sort();
+          attempts.push({
+            provider,
+            status: "OBSERVED",
+            accountType: discriminator.name,
+            matchCount: addresses.length,
+          });
+          if (addresses.length > 0) {
+            return {
+              status: "DISCOVERED",
+              programId,
+              address: addresses[0],
+              accountType: discriminator.name,
+              discriminatorHex: discriminator.discriminatorHex,
+              discoveryProvider: provider,
+              attempts,
+              candidateSelectionIsEvidence: false,
+              authorityChanged: false,
+              transactionSigned: false,
+              transactionSubmitted: false,
+              realMoney: false,
+            };
+          }
+        } catch (error) {
+          attempts.push({
+            provider,
+            status: "UNAVAILABLE",
+            accountType: discriminator.name,
+            error: error.message,
+          });
+        }
+      }
+    }
+
+    return {
+      status: "NOT_FOUND",
+      programId,
+      address: null,
+      accountType: null,
+      discriminatorHex: null,
+      discoveryProvider: null,
+      attempts,
+      candidateSelectionIsEvidence: false,
+      authorityChanged: false,
+      transactionSigned: false,
+      transactionSubmitted: false,
+      realMoney: false,
     };
   }
 
