@@ -26,6 +26,9 @@ function stateTemplate({ configHash = "config-a", poolHash = "pool-a", slot = 10
       observedProviderCount: 2,
       present: true,
       ownedByDbcProgram: true,
+      accountType: "PoolConfig",
+      accountTypeMatches: true,
+      discriminatorHex: "1a6c0e7b74e6812b",
       owner: METEORA_DBC_PROGRAM_ID,
       executable: false,
       space: 256,
@@ -40,6 +43,9 @@ function stateTemplate({ configHash = "config-a", poolHash = "pool-a", slot = 10
       observedProviderCount: 2,
       present: true,
       ownedByDbcProgram: true,
+      accountType: "VirtualPool",
+      accountTypeMatches: true,
+      discriminatorHex: "d5e005d16245775c",
       owner: METEORA_DBC_PROGRAM_ID,
       executable: false,
       space: 512,
@@ -126,16 +132,20 @@ test("Baby fingerprints DBC config/pool changes and keeps the only live action b
       };
     },
     async observeAccount(address) {
-      const dataHash = address === POOL_ADDRESS && cycle >= 2 ? "pool-b" : `${address}-a`;
+      const isPool = address === POOL_ADDRESS;
+      const dataHash = isPool && cycle >= 2 ? "pool-b" : `${address}-a`;
       const state = {
         address,
         present: true,
         executable: false,
         owner: METEORA_DBC_PROGRAM_ID,
-        space: address === POOL_ADDRESS ? 512 : 256,
-        lamports: address === POOL_ADDRESS ? 2000 : 1000,
-        dataLength: address === POOL_ADDRESS ? 128 : 64,
+        space: isPool ? 512 : 256,
+        lamports: isPool ? 2000 : 1000,
+        dataLength: isPool ? 128 : 64,
         dataHash,
+        discriminatorHex: isPool ? "d5e005d16245775c" : "1a6c0e7b74e6812b",
+        accountType: isPool ? "VirtualPool" : "PoolConfig",
+        accountTypeMatches: true,
         ownerMatches: true,
       };
       return {
@@ -199,6 +209,10 @@ test("Baby fingerprints DBC config/pool changes and keeps the only live action b
   assert.equal(first.change.noveltyClass, "BASELINE");
   assert.equal(first.trackedWitnesses.configState.status, "VERIFIED");
   assert.equal(first.trackedWitnesses.poolState.status, "VERIFIED");
+  assert.equal(first.state.configState.accountType, "PoolConfig");
+  assert.equal(first.state.configState.accountTypeMatches, true);
+  assert.equal(first.state.poolState.accountType, "VirtualPool");
+  assert.equal(first.state.poolState.accountTypeMatches, true);
 
   const second = await baby.observeAsync();
   assert.equal(second.change.noveltyClass, "CHANGED");

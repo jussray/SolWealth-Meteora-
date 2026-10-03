@@ -44,14 +44,26 @@ function retryAfterMs(response, fallbackMs) {
 }
 
 function accountDataFacts(account) {
-  if (!account) return { dataLength: null, dataHash: null };
+  if (!account) return { dataLength: null, dataHash: null, discriminatorHex: null };
   const raw = Array.isArray(account.data) ? account.data[0] : null;
-  if (typeof raw !== "string") return { dataLength: null, dataHash: null };
+  if (typeof raw !== "string") return { dataLength: null, dataHash: null, discriminatorHex: null };
   const bytes = Buffer.from(raw, "base64");
   return {
     dataLength: bytes.length,
     dataHash: createHash("sha256").update(bytes).digest("hex"),
+    discriminatorHex: bytes.length >= 8 ? bytes.subarray(0, 8).toString("hex") : null,
   };
+}
+
+function normalizeExpectedDiscriminators(entries) {
+  if (entries == null) return [];
+  if (!Array.isArray(entries)) throw new Error("expectedDiscriminators must be an array.");
+  return entries.map((entry) => {
+    if (!entry || typeof entry.name !== "string" || !/^[0-9a-f]{16}$/i.test(entry.discriminatorHex ?? "")) {
+      throw new Error("Each expected discriminator must have a name and 8-byte hex discriminator.");
+    }
+    return { name: entry.name, discriminatorHex: entry.discriminatorHex.toLowerCase() };
+  });
 }
 
 export function decodeBase58(value) {
@@ -240,7 +252,8 @@ export class SolanaDevnetRpc {
     };
   }
 
-  async observeAccount(address, { expectedOwner = null } = {}) {
+  async observeAccount(address, { expectedOwner = null, expectedDiscriminators = [] } = {}) {
+    const discriminators = normalizeExpectedDiscriminators(expectedDiscriminators);
     const providers = [];
     const providerObservations = [];
     for (const endpoint of this.#endpoints) {
@@ -249,6 +262,9 @@ export class SolanaDevnetRpc {
         const accountInfo = await this.#call(endpoint, "getAccountInfo", [address, { encoding: "base64", commitment: "confirmed" }]);
         const account = accountInfo?.value ?? null;
         const dataFacts = accountDataFacts(account);
+        const matchedType = account && discriminators.length > 0
+          ? discriminators.find((entry) => entry.discriminatorHex === dataFacts.discriminatorHex)
+          : null;
         const state = {
           address,
           present: account !== null,
@@ -258,6 +274,9 @@ export class SolanaDevnetRpc {
           lamports: account?.lamports ?? null,
           dataLength: dataFacts.dataLength,
           dataHash: dataFacts.dataHash,
+          discriminatorHex: dataFacts.discriminatorHex,
+          accountType: matchedType?.name ?? null,
+          accountTypeMatches: account == null || discriminators.length === 0 ? null : matchedType != null,
           ownerMatches: expectedOwner == null ? null : account?.owner === expectedOwner,
         };
         providers.push({ provider, status: "OBSERVED", slot: accountInfo?.context?.slot ?? null, ...state });
@@ -269,6 +288,7 @@ export class SolanaDevnetRpc {
     return {
       address,
       expectedOwner,
+      expectedAccountTypes: discriminators.map((entry) => entry.name),
       providers,
       providerObservations,
       observedProviderCount: providers.filter((entry) => entry.status === "OBSERVED").length,

@@ -165,6 +165,9 @@ export class SolwealthBabyAI {
         if (tracked.present === true && tracked.ownedByDbcProgram !== true) {
           riskFlags.push(`${target}_owner_mismatch`);
         }
+        if (tracked.present === true && tracked.accountTypeMatches === false) {
+          riskFlags.push(`${target}_account_type_mismatch`);
+        }
       }
     }
 
