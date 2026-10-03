@@ -1,5 +1,11 @@
 export { AuthorityGate, CAPABILITY_CATALOG } from "./authority.mjs";
 export { SolwealthBabyAI } from "./brain.mjs";
+export { BoundedCognitionAdvisor } from "./cognition/advisor.mjs";
+export {
+  compareObservedState,
+  digestFingerprint,
+  semanticObservationState,
+} from "./cognition/fingerprint.mjs";
 export { DevelopmentState } from "./development.mjs";
 export { MeteoraDbcCrawler } from "./environments/meteora-dbc-crawler.mjs";
 export { MeteoraDbcLab, METEORA_DBC_PROGRAM_ID } from "./environments/meteora-dbc-sim.mjs";
