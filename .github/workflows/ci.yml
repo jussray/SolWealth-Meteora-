@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# Pull request heads share one group; main push runs remain unique.
+# Main runs are keyed by run_id, so newer PR heads cannot supersede them.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
