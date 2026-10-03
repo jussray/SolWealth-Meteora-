@@ -73,10 +73,10 @@ export class DiscoveryQuorum {
 
     let status;
     let selected = null;
-    if (eligible.length > 0) {
+    if (eligible.length === 1) {
       status = "VERIFIED";
       selected = eligible[0];
-    } else if (discovered.length >= this.requiredProviders) {
+    } else if (eligible.length > 1 || discovered.length >= this.requiredProviders) {
       status = "CONFLICT";
     } else {
       status = "INSUFFICIENT_EVIDENCE";
@@ -90,6 +90,7 @@ export class DiscoveryQuorum {
       discriminatorHex: selected?.candidate.discriminatorHex ?? null,
       configuredProviderCount: this.endpoints.length,
       discoveredProviderCount: discovered.length,
+      eligibleGroupCount: eligible.length,
       agreeingProviderCount: selected?.providers.length ?? 0,
       requiredProviders: this.requiredProviders,
       agreeingProviders: selected ? [...selected.providers].sort() : [],
