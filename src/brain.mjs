@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { AuthorityGate } from "./authority.mjs";
+import { compareObservedState } from "./cognition/fingerprint.mjs";
 import { DevelopmentState } from "./development.mjs";
 import { deriveLearning } from "./learning/patterns.mjs";
 import { birthCertificate } from "./lineage.mjs";
@@ -9,6 +10,14 @@ import { ContinuityWitness } from "./witness/continuity.mjs";
 
 function makeId(prefix, payload) {
   return `${prefix}_${createHash("sha256").update(stableStringify(payload)).digest("hex").slice(0, 20)}`;
+}
+
+function sameTrackedIdentity(left, right) {
+  return left?.environment === right?.environment
+    && left?.sourceMode === right?.sourceMode
+    && left?.programId === right?.programId
+    && (left?.configState?.address ?? null) === (right?.configState?.address ?? null)
+    && (left?.poolState?.address ?? null) === (right?.poolState?.address ?? null);
 }
 
 export class SolwealthBabyAI {
@@ -93,12 +102,32 @@ export class SolwealthBabyAI {
     const observationWitness = providerObservations.length > 0
       ? this.#witness.verify(providerObservations)
       : null;
+
+    const trackedWitnesses = {};
+    for (const target of ["configState", "poolState"]) {
+      const nestedObservations = state[target]?.providerObservations ?? [];
+      trackedWitnesses[target] = nestedObservations.length > 0
+        ? this.#witness.verify(nestedObservations)
+        : null;
+    }
+
     const publicState = structuredClone(state);
     delete publicState.providerObservations;
+    for (const target of ["configState", "poolState"]) {
+      if (publicState[target]) delete publicState[target].providerObservations;
+    }
+
+    const priorEntry = [...this.#memory.entries()]
+      .reverse()
+      .find((entry) => entry.kind === "OBSERVE" && sameTrackedIdentity(entry.payload?.state, publicState));
+    const change = compareObservedState(priorEntry?.payload?.state ?? null, publicState);
+
     const observation = {
-      id: makeId("obs", publicState),
+      id: makeId("obs", { publicState, currentFingerprint: change.currentFingerprint }),
       state: publicState,
       observationWitness,
+      trackedWitnesses,
+      change,
       authority: this.#authority.authorize({
         capability: "observe",
         environment: this.#environment.environment,
@@ -118,12 +147,25 @@ export class SolwealthBabyAI {
     if (state.environment !== "solana-devnet-dry-run") riskFlags.push("environment_not_devnet_dry_run");
     if (state.dryRun !== true) riskFlags.push("dry_run_disabled");
     if (!state.programId) riskFlags.push("program_identity_missing");
+
     if (state.sourceMode === "live-readonly") {
       if (state.clusterVerified !== true) riskFlags.push("devnet_identity_not_verified");
       if (state.programAccount?.present !== true) riskFlags.push("dbc_program_not_present");
       if (state.programAccount?.executable !== true) riskFlags.push("dbc_program_not_executable");
       if (observation.observationWitness?.status === "CONFLICT") riskFlags.push("provider_conflict");
       else if (observation.observationWitness?.verified !== true) warningFlags.push("provider_quorum_not_met");
+
+      for (const target of ["configState", "poolState"]) {
+        const tracked = state[target];
+        const witness = observation.trackedWitnesses?.[target];
+        if (!tracked?.address) continue;
+        if (witness?.status === "CONFLICT") riskFlags.push(`${target}_provider_conflict`);
+        else if (witness?.verified !== true) warningFlags.push(`${target}_provider_quorum_not_met`);
+        if (tracked.present !== true) warningFlags.push(`${target}_not_present`);
+        if (tracked.present === true && tracked.ownedByDbcProgram !== true) {
+          riskFlags.push(`${target}_owner_mismatch`);
+        }
+      }
     }
 
     const orientation = {
@@ -245,8 +287,15 @@ export class SolwealthBabyAI {
   #recordCompleted(proposalId, permit, simulation) {
     const witness = this.#witness.verify(simulation.providerObservations);
     const developmentalState = this.#development.recordExperience({ verified: witness.verified });
+    const fingerprint = makeId("xfp", {
+      proposalId,
+      simulationStatus: simulation.status,
+      witnessStatus: witness.status,
+      providerStates: simulation.providerObservations?.map((entry) => entry.state) ?? [],
+    });
     const experience = {
       id: makeId("experience", { proposalId, simulationStatus: simulation.status, witness: witness.status }),
+      fingerprint,
       proposalId,
       status: witness.verified ? "EXPERIENCED_VERIFIED" : "EXPERIENCED_UNVERIFIED",
       permit,

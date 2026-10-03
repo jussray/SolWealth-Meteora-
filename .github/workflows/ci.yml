@@ -112,7 +112,12 @@ jobs:
           grep -q '"programExecutable": true' solwealth-crawler-receipt.json
           grep -q '"observedProviderCount": 2' solwealth-crawler-receipt.json
           grep -q '"liveWitness": "VERIFIED"' solwealth-crawler-receipt.json
+          grep -Eq '"observationFingerprint": "[0-9a-f]{64}"' solwealth-crawler-receipt.json
+          grep -q '"noveltyClass": "BASELINE"' solwealth-crawler-receipt.json
+          grep -q '"cognitionSource": "deterministic"' solwealth-crawler-receipt.json
+          grep -q '"cognitionCanSelfAuthorize": false' solwealth-crawler-receipt.json
           grep -q '"experienceStatus": "EXPERIENCED_VERIFIED"' solwealth-crawler-receipt.json
+          grep -Eq '"experienceFingerprint": "xfp_[0-9a-f]{20}"' solwealth-crawler-receipt.json
           grep -q '"simulationWitness": "VERIFIED"' solwealth-crawler-receipt.json
           grep -q '"verifiedExperiences": 1' solwealth-crawler-receipt.json
           grep -q '"recommendedStage": "crawler"' solwealth-crawler-receipt.json

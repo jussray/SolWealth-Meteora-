@@ -1,9 +1,56 @@
 import { METEORA_DBC_PROGRAM_ID } from "./meteora-dbc-sim.mjs";
 
+function consensusValue(states, field) {
+  if (states.length === 0) return null;
+  const values = states.map((state) => state[field]);
+  const first = JSON.stringify(values[0]);
+  return values.every((value) => JSON.stringify(value) === first) ? values[0] : null;
+}
+
+function trackedAccount(address, observation) {
+  if (!address) {
+    return {
+      address: null,
+      observed: false,
+      observedProviderCount: 0,
+      present: null,
+      ownedByDbcProgram: null,
+      executable: null,
+      owner: null,
+      space: null,
+      lamports: null,
+      dataLength: null,
+      dataHash: null,
+      providerObservations: [],
+    };
+  }
+
+  const providerObservations = observation?.providerObservations ?? [];
+  const states = providerObservations.map((entry) => entry.state);
+  const observedProviderCount = states.length;
+  const present = states.length > 0 && states.every((state) => state.present === true);
+
+  return {
+    address,
+    observed: observedProviderCount > 0,
+    observedProviderCount,
+    present,
+    ownedByDbcProgram: present ? states.every((state) => state.ownerMatches === true) : null,
+    executable: consensusValue(states, "executable"),
+    owner: consensusValue(states, "owner"),
+    space: consensusValue(states, "space"),
+    lamports: consensusValue(states, "lamports"),
+    dataLength: consensusValue(states, "dataLength"),
+    dataHash: consensusValue(states, "dataHash"),
+    providerObservations,
+  };
+}
+
 export class MeteoraDbcCrawler {
-  constructor({ rpc, poolAddress = null } = {}) {
+  constructor({ rpc, configAddress = null, poolAddress = null } = {}) {
     if (!rpc) throw new Error("MeteoraDbcCrawler requires a Solana Devnet RPC observer.");
     this.rpc = rpc;
+    this.configAddress = configAddress;
     this.poolAddress = poolAddress;
     this.name = "meteora-dbc-crawler";
     this.environment = "solana-devnet-dry-run";
@@ -15,11 +62,13 @@ export class MeteoraDbcCrawler {
 
   async observeAsync() {
     const program = await this.rpc.observeProgram(this.programId);
-    let pool = null;
-    if (this.poolAddress) {
-      pool = await this.rpc.observeAccount(this.poolAddress, { expectedOwner: this.programId });
-    }
-    const poolProviders = pool?.providers?.filter((entry) => entry.status === "OBSERVED") ?? [];
+    const config = this.configAddress
+      ? await this.rpc.observeAccount(this.configAddress, { expectedOwner: this.programId })
+      : null;
+    const pool = this.poolAddress
+      ? await this.rpc.observeAccount(this.poolAddress, { expectedOwner: this.programId })
+      : null;
+
     return {
       environment: this.environment,
       dryRun: this.dryRun,
@@ -32,19 +81,8 @@ export class MeteoraDbcCrawler {
       programAccount: program.programAccount,
       providers: program.providers,
       providerObservations: program.providerObservations,
-      poolState: this.poolAddress ? {
-        address: this.poolAddress,
-        observed: poolProviders.length > 0,
-        present: poolProviders.length > 0 && poolProviders.every((entry) => entry.present === true),
-        ownedByDbcProgram: poolProviders.length > 0 && poolProviders.every((entry) => entry.ownerMatches === true),
-        providerObservations: pool.providerObservations,
-      } : {
-        address: null,
-        observed: false,
-        present: null,
-        ownedByDbcProgram: null,
-        providerObservations: [],
-      },
+      configState: trackedAccount(this.configAddress, config),
+      poolState: trackedAccount(this.poolAddress, pool),
     };
   }
 

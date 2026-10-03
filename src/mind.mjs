@@ -1,4 +1,10 @@
+import { BoundedCognitionAdvisor } from "./cognition/advisor.mjs";
+
 export class InfantMind {
+  constructor({ advisor = new BoundedCognitionAdvisor() } = {}) {
+    this.advisor = advisor;
+  }
+
   decide({ observation, orientation, development }) {
     if (orientation.disposition !== "LEARN") {
       return {
@@ -24,17 +30,28 @@ export class InfantMind {
       if (state.programAccount?.present !== true || state.programAccount?.executable !== true) {
         return { status: "HALT", reason: "dbc_program_not_observed_executable", canSelfAuthorize: false };
       }
+
+      const cognition = this.advisor.advise({ observation, orientation, development });
+      const changedTargets = observation.change?.changedTargets ?? [];
       return {
         status: "PROPOSE",
         action: "simulate_program_probe",
         params: {
           programId: state.programId,
           observedProviderCount: state.observedProviderCount,
+          configAddress: state.configState?.address ?? null,
           poolAddress: state.poolState?.address ?? null,
+          observationFingerprint: observation.change?.currentFingerprint ?? null,
+          changedTargets,
         },
-        rationale: "Live Devnet confirms the DBC program is present; the next bounded lesson is an unsigned RPC simulation, never a submitted transaction.",
+        rationale: cognition.focus === "inspect_state_change"
+          ? "Verified read-only DBC state changed; preserve the before/after evidence and use only the existing unsigned simulation lesson."
+          : "Live Devnet confirms the bounded DBC evidence; the next lesson remains unsigned RPC simulation, never a submitted transaction.",
         developmentalStage: development.stage,
-        confidenceClass: observation.observationWitness?.verified ? "provider-quorum-observed" : "single-provider-or-insufficient-quorum",
+        confidenceClass: observation.observationWitness?.verified
+          ? cognition.confidenceClass
+          : "single-provider-or-insufficient-quorum",
+        cognition,
         canSelfAuthorize: false,
         canSign: false,
         canSubmit: false,

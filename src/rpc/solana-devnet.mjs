@@ -43,6 +43,17 @@ function retryAfterMs(response, fallbackMs) {
   return fallbackMs;
 }
 
+function accountDataFacts(account) {
+  if (!account) return { dataLength: null, dataHash: null };
+  const raw = Array.isArray(account.data) ? account.data[0] : null;
+  if (typeof raw !== "string") return { dataLength: null, dataHash: null };
+  const bytes = Buffer.from(raw, "base64");
+  return {
+    dataLength: bytes.length,
+    dataHash: createHash("sha256").update(bytes).digest("hex"),
+  };
+}
+
 export function decodeBase58(value) {
   if (typeof value !== "string" || value.length === 0) throw new Error("base58 value is required");
   let numeric = 0n;
@@ -237,12 +248,16 @@ export class SolanaDevnetRpc {
       try {
         const accountInfo = await this.#call(endpoint, "getAccountInfo", [address, { encoding: "base64", commitment: "confirmed" }]);
         const account = accountInfo?.value ?? null;
+        const dataFacts = accountDataFacts(account);
         const state = {
           address,
           present: account !== null,
           executable: account?.executable === true,
           owner: account?.owner ?? null,
           space: account?.space ?? null,
+          lamports: account?.lamports ?? null,
+          dataLength: dataFacts.dataLength,
+          dataHash: dataFacts.dataHash,
           ownerMatches: expectedOwner == null ? null : account?.owner === expectedOwner,
         };
         providers.push({ provider, status: "OBSERVED", slot: accountInfo?.context?.slot ?? null, ...state });
