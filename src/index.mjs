@@ -7,6 +7,7 @@ export { deriveLearning } from "./learning/patterns.mjs";
 export { BIRTH_LINEAGE, birthCertificate } from "./lineage.mjs";
 export { MemoryLedger } from "./memory.mjs";
 export { InfantMind } from "./mind.mjs";
+export { PersistentMemoryLedger } from "./persistence/file-memory.mjs";
 export {
   SOLANA_DEVNET_GENESIS_HASH,
   SOLANA_DEVNET_RPC_URL,

@@ -27,12 +27,15 @@ export class SolwealthBabyAI {
     this.#environment = environment;
     this.#memory = memory ?? new MemoryLedger();
     this.#authority = authority ?? new AuthorityGate();
-    this.#development = development ?? new DevelopmentState();
+    this.#development = development ?? DevelopmentState.fromMemory(this.#memory.entries());
     this.#witness = witness ?? new ContinuityWitness();
     this.#mind = mind ?? new InfantMind();
   }
 
   birth() {
+    if (this.#memory.entries().some((entry) => entry.kind === "BIRTH")) {
+      throw new Error("birth_already_recorded_use_resume");
+    }
     const certificate = {
       ...birthCertificate(),
       developmentalState: this.#development.snapshot(),
@@ -47,6 +50,29 @@ export class SolwealthBabyAI {
       },
     };
     return this.#memory.append("BIRTH", certificate);
+  }
+
+  resume() {
+    const entries = this.#memory.entries();
+    if (!entries.some((entry) => entry.kind === "BIRTH")) {
+      throw new Error("cannot_resume_before_birth");
+    }
+    if (!this.#memory.verify()) {
+      throw new Error("cannot_resume_unverified_memory");
+    }
+    const previousHeadHash = entries.at(-1)?.hash ?? "GENESIS";
+    const receipt = {
+      status: "RESUMED",
+      previousHeadHash,
+      memoryEntryCountBeforeResume: entries.length,
+      developmentalState: this.#development.snapshot(),
+      authorityRestored: false,
+      pendingProposalsRestored: false,
+      pendingApprovalsRestored: false,
+      note: "Knowledge and development may resume; prior effect authority does not.",
+    };
+    this.#memory.append("RESUME", receipt);
+    return structuredClone(receipt);
   }
 
   observe(seed = {}) {

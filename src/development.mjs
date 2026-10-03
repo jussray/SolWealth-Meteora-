@@ -7,6 +7,30 @@ export class DevelopmentState {
   #verifiedExperiences = 0;
   #unverifiedExperiences = 0;
 
+  static fromMemory(entries = []) {
+    if (!Array.isArray(entries)) throw new Error("development_memory_must_be_array");
+    const state = new DevelopmentState();
+    for (const entry of entries) {
+      if (entry?.kind === "EXPERIENCE") {
+        state.recordExperience({ verified: entry.payload?.witness?.verified === true });
+      }
+      if (entry?.kind === "DEVELOPMENT_REVIEW" && entry.payload?.status === "GRADUATED") {
+        const targetStage = entry.payload.stage;
+        if (!STAGES.includes(targetStage) || entry.payload.authorityChanged !== false) {
+          throw new Error("development_memory_invalid");
+        }
+        const targetIndex = STAGES.indexOf(targetStage);
+        const currentIndex = STAGES.indexOf(state.#stage);
+        const recommendedIndex = STAGES.indexOf(state.recommendedStage());
+        if (targetIndex < currentIndex || targetIndex > recommendedIndex) {
+          throw new Error("development_memory_transition_invalid");
+        }
+        state.#stage = targetStage;
+      }
+    }
+    return state;
+  }
+
   get stage() {
     return this.#stage;
   }

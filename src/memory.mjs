@@ -24,8 +24,12 @@ export class MemoryLedger {
   #entries = [];
   #clock;
 
-  constructor({ clock = () => new Date().toISOString() } = {}) {
+  constructor({ clock = () => new Date().toISOString(), entries = [] } = {}) {
     this.#clock = clock;
+    if (!Array.isArray(entries)) throw new Error("memory_entries_must_be_array");
+    const candidate = structuredClone(entries);
+    if (!this.verify(candidate)) throw new Error("memory_integrity_failure");
+    this.#entries = candidate.map((entry) => Object.freeze(entry));
   }
 
   append(kind, payload) {
@@ -46,10 +50,20 @@ export class MemoryLedger {
     return structuredClone(this.#entries);
   }
 
+  size() {
+    return this.#entries.length;
+  }
+
+  head() {
+    return structuredClone(this.#entries.at(-1) ?? null);
+  }
+
   verify(entries = this.#entries) {
+    if (!Array.isArray(entries)) return false;
     let previousHash = "GENESIS";
     for (let index = 0; index < entries.length; index += 1) {
       const entry = entries[index];
+      if (!entry || typeof entry !== "object") return false;
       const body = {
         sequence: index + 1,
         at: entry.at,
