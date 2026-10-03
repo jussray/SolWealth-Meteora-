@@ -131,3 +131,58 @@ jobs:
           name: solwealth-crawler-receipt
           path: solwealth-crawler-receipt.json
           if-no-files-found: warn
+
+  live-dbc-account-discovery:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SOLANA_DEVNET_RPC_URLS: https://api.devnet.solana.com,https://solana-devnet.api.onfinality.io/public
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bind live account proof to exact head
+        run: |
+          set -euo pipefail
+          checked_out_sha="$(git rev-parse HEAD)"
+          test "$checked_out_sha" = "$EXPECTED_HEAD_SHA"
+          echo "exact_head_sha=$checked_out_sha"
+      - name: Discover and independently verify live DBC accounts
+        run: |
+          set -o pipefail
+          npm run accounts:live | tee solwealth-dbc-account-receipt.json
+      - name: Verify discovered candidates became two-provider identity evidence
+        run: |
+          grep -q '"status": "OBSERVED"' solwealth-dbc-account-receipt.json
+          grep -q '"configDiscoveryStatus": "DISCOVERED"' solwealth-dbc-account-receipt.json
+          grep -q '"poolDiscoveryStatus": "DISCOVERED"' solwealth-dbc-account-receipt.json
+          grep -q '"configCandidateSelectionIsEvidence": false' solwealth-dbc-account-receipt.json
+          grep -q '"poolCandidateSelectionIsEvidence": false' solwealth-dbc-account-receipt.json
+          grep -q '"clusterVerified": true' solwealth-dbc-account-receipt.json
+          grep -q '"programPresent": true' solwealth-dbc-account-receipt.json
+          grep -q '"programExecutable": true' solwealth-dbc-account-receipt.json
+          grep -q '"liveWitness": "VERIFIED"' solwealth-dbc-account-receipt.json
+          grep -q '"configPresent": true' solwealth-dbc-account-receipt.json
+          grep -q '"configOwnedByDbcProgram": true' solwealth-dbc-account-receipt.json
+          grep -q '"configAccountTypeMatches": true' solwealth-dbc-account-receipt.json
+          grep -q '"configWitness": "VERIFIED"' solwealth-dbc-account-receipt.json
+          grep -q '"poolPresent": true' solwealth-dbc-account-receipt.json
+          grep -q '"poolOwnedByDbcProgram": true' solwealth-dbc-account-receipt.json
+          grep -q '"poolAccountTypeMatches": true' solwealth-dbc-account-receipt.json
+          grep -q '"poolWitness": "VERIFIED"' solwealth-dbc-account-receipt.json
+          grep -q '"orientationDisposition": "LEARN"' solwealth-dbc-account-receipt.json
+          grep -q '"memoryVerified": true' solwealth-dbc-account-receipt.json
+          grep -q '"authorityChanged": false' solwealth-dbc-account-receipt.json
+          grep -q '"realMoney": false' solwealth-dbc-account-receipt.json
+          grep -q '"transactionSigned": false' solwealth-dbc-account-receipt.json
+          grep -q '"transactionSubmitted": false' solwealth-dbc-account-receipt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: solwealth-dbc-account-receipt
+          path: solwealth-dbc-account-receipt.json
+          if-no-files-found: warn
