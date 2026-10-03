@@ -1,5 +1,6 @@
-import { DBC_CONFIG_ACCOUNT_TYPES, DBC_POOL_ACCOUNT_TYPES } from "./cognition/dbc-account-types.mjs";
 import { SolwealthBabyAI } from "./brain.mjs";
+import { DBC_CONFIG_ACCOUNT_TYPES, DBC_POOL_ACCOUNT_TYPES } from "./cognition/dbc-account-types.mjs";
+import { DiscoveryQuorum } from "./cognition/discovery-quorum.mjs";
 import { MeteoraDbcCrawler } from "./environments/meteora-dbc-crawler.mjs";
 import { METEORA_DBC_PROGRAM_ID } from "./environments/meteora-dbc-sim.mjs";
 import { SOLANA_DEVNET_RPC_URL, SolanaDevnetRpc } from "./rpc/solana-devnet.mjs";
@@ -9,15 +10,16 @@ const endpoints = (process.env.SOLANA_DEVNET_RPC_URLS ?? SOLANA_DEVNET_RPC_URL)
   .map((value) => value.trim())
   .filter(Boolean);
 
-const rpc = new SolanaDevnetRpc({ endpoints });
-const configDiscovery = await rpc.discoverAccountByDiscriminator(
+const discovery = new DiscoveryQuorum({ endpoints });
+const configDiscovery = await discovery.discover(
   METEORA_DBC_PROGRAM_ID,
   DBC_CONFIG_ACCOUNT_TYPES,
 );
-const poolDiscovery = await rpc.discoverAccountByDiscriminator(
+const poolDiscovery = await discovery.discover(
   METEORA_DBC_PROGRAM_ID,
   DBC_POOL_ACCOUNT_TYPES,
 );
+const rpc = new SolanaDevnetRpc({ endpoints });
 
 const discoveryReceipt = {
   baby: "solwealth",
@@ -26,10 +28,14 @@ const discoveryReceipt = {
   configDiscoveryStatus: configDiscovery.status,
   configDiscoveryType: configDiscovery.accountType,
   configAddress: configDiscovery.address,
+  configDiscoveryAgreeingProviders: configDiscovery.agreeingProviderCount,
+  configDiscoveryProviderAgreementVerified: configDiscovery.providerAgreementVerified,
   configCandidateSelectionIsEvidence: configDiscovery.candidateSelectionIsEvidence,
   poolDiscoveryStatus: poolDiscovery.status,
   poolDiscoveryType: poolDiscovery.accountType,
   poolAddress: poolDiscovery.address,
+  poolDiscoveryAgreeingProviders: poolDiscovery.agreeingProviderCount,
+  poolDiscoveryProviderAgreementVerified: poolDiscovery.providerAgreementVerified,
   poolCandidateSelectionIsEvidence: poolDiscovery.candidateSelectionIsEvidence,
   authorityChanged: false,
   realMoney: false,
@@ -37,11 +43,11 @@ const discoveryReceipt = {
   transactionSubmitted: false,
 };
 
-if (configDiscovery.status !== "DISCOVERED" || poolDiscovery.status !== "DISCOVERED") {
+if (configDiscovery.status !== "VERIFIED" || poolDiscovery.status !== "VERIFIED") {
   console.log(JSON.stringify({
     ...discoveryReceipt,
     status: "HALTED",
-    haltReason: "required_dbc_account_candidate_not_found",
+    haltReason: "dbc_discovery_provider_agreement_not_verified",
   }, null, 2));
   process.exitCode = 1;
 } else {

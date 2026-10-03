@@ -155,11 +155,15 @@ jobs:
         run: |
           set -o pipefail
           npm run accounts:live | tee solwealth-dbc-account-receipt.json
-      - name: Verify discovered candidates became two-provider identity evidence
+      - name: Verify discovery quorum and two-provider identity evidence
         run: |
           grep -q '"status": "OBSERVED"' solwealth-dbc-account-receipt.json
-          grep -q '"configDiscoveryStatus": "DISCOVERED"' solwealth-dbc-account-receipt.json
-          grep -q '"poolDiscoveryStatus": "DISCOVERED"' solwealth-dbc-account-receipt.json
+          grep -q '"configDiscoveryStatus": "VERIFIED"' solwealth-dbc-account-receipt.json
+          grep -q '"poolDiscoveryStatus": "VERIFIED"' solwealth-dbc-account-receipt.json
+          grep -q '"configDiscoveryAgreeingProviders": 2' solwealth-dbc-account-receipt.json
+          grep -q '"poolDiscoveryAgreeingProviders": 2' solwealth-dbc-account-receipt.json
+          grep -q '"configDiscoveryProviderAgreementVerified": true' solwealth-dbc-account-receipt.json
+          grep -q '"poolDiscoveryProviderAgreementVerified": true' solwealth-dbc-account-receipt.json
           grep -q '"configCandidateSelectionIsEvidence": false' solwealth-dbc-account-receipt.json
           grep -q '"poolCandidateSelectionIsEvidence": false' solwealth-dbc-account-receipt.json
           grep -q '"clusterVerified": true' solwealth-dbc-account-receipt.json
