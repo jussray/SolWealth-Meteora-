@@ -1,3 +1,4 @@
+import { DBC_CONFIG_ACCOUNT_TYPES, DBC_POOL_ACCOUNT_TYPES } from "../cognition/dbc-account-types.mjs";
 import { METEORA_DBC_PROGRAM_ID } from "./meteora-dbc-sim.mjs";
 
 function consensusValue(states, field) {
@@ -15,6 +16,9 @@ function trackedAccount(address, observation) {
       observedProviderCount: 0,
       present: null,
       ownedByDbcProgram: null,
+      accountType: null,
+      accountTypeMatches: null,
+      discriminatorHex: null,
       executable: null,
       owner: null,
       space: null,
@@ -36,6 +40,9 @@ function trackedAccount(address, observation) {
     observedProviderCount,
     present,
     ownedByDbcProgram: present ? states.every((state) => state.ownerMatches === true) : null,
+    accountType: consensusValue(states, "accountType"),
+    accountTypeMatches: present ? states.every((state) => state.accountTypeMatches === true) : null,
+    discriminatorHex: consensusValue(states, "discriminatorHex"),
     executable: consensusValue(states, "executable"),
     owner: consensusValue(states, "owner"),
     space: consensusValue(states, "space"),
@@ -63,10 +70,16 @@ export class MeteoraDbcCrawler {
   async observeAsync() {
     const program = await this.rpc.observeProgram(this.programId);
     const config = this.configAddress
-      ? await this.rpc.observeAccount(this.configAddress, { expectedOwner: this.programId })
+      ? await this.rpc.observeAccount(this.configAddress, {
+          expectedOwner: this.programId,
+          expectedDiscriminators: DBC_CONFIG_ACCOUNT_TYPES,
+        })
       : null;
     const pool = this.poolAddress
-      ? await this.rpc.observeAccount(this.poolAddress, { expectedOwner: this.programId })
+      ? await this.rpc.observeAccount(this.poolAddress, {
+          expectedOwner: this.programId,
+          expectedDiscriminators: DBC_POOL_ACCOUNT_TYPES,
+        })
       : null;
 
     return {
